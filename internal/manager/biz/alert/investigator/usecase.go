@@ -43,7 +43,15 @@ type Repo interface {
 	// (POST /v1/alerts/incidents/{id}/investigation always force-overwrites).
 	GetByIncident(ctx context.Context, incidentID uint64) (*alertmodel.InvestigationReport, error)
 	DeleteByIncident(ctx context.Context, incidentID uint64) error
+	// ListIncidentsWithoutReport powers the boot compensation pass — see
+	// BackfillUnstartedIncidents. Returns incident IDs in [since, now)
+	// that have no investigation_reports row at all, ordered freshest first.
+	ListIncidentsWithoutReport(ctx context.Context, since time.Time, limit int) ([]uint64, error)
 }
+
+// IncidentLoader is the narrow seam BackfillUnstartedIncidents uses to
+// re-hydrate full incident rows by id. Satisfied by alert.Usecase.GetIncident.
+type IncidentLoader func(ctx context.Context, id uint64) (*alertmodel.Incident, error)
 
 // ReadyFields mirrors store.ReportReadyFields so the biz layer can
 // pass structured outputs without importing the store package. The
@@ -442,6 +450,57 @@ func (uc *Usecase) ForceEnqueue(ctx context.Context, incident *alertmodel.Incide
 	// the row; inflight will pass since we just cleared it).
 	uc.Enqueue(ctx, incident)
 	return nil
+}
+
+// BackfillUnstartedIncidents finds incidents that fired in [since, now)
+// without any investigation_reports row and enqueues an investigation for
+// each through the normal Enqueue path (severity, in-process inflight, and
+// concurrency-cap gates all still apply). Returns the number of incidents
+// it dispatched (not necessarily the number that will produce a report —
+// gates may still skip).
+//
+// Why this exists: SetInvestigator is wired only at manager startup, and
+// the structured RCA chain is only built when buildAIOpsRuntime succeeds,
+// which requires at least one LLM provider configured. Fresh installs
+// (and any time the manager boots before the operator has set a provider
+// key) thus have a window where incidents fire with no investigator wired
+// — RecordFiring silently skips, no row is written, and the IncidentDetail
+// page shows status=not_started indefinitely. Once the operator adds a
+// provider and the manager restarts, this pass repairs the window.
+//
+// Bounded by `limit` to cap the LLM cost of a burst (the global concurrency
+// cap in Enqueue further damps the burst — over-cap calls land as skipped
+// rows rather than queueing).
+func (uc *Usecase) BackfillUnstartedIncidents(ctx context.Context, since time.Time, limit int, loadIncident IncidentLoader) (int, error) {
+	if uc == nil || !uc.cfg.Enabled || loadIncident == nil {
+		return 0, nil
+	}
+	ids, err := uc.repo.ListIncidentsWithoutReport(ctx, since, limit)
+	if err != nil {
+		return 0, fmt.Errorf("list unstarted: %w", err)
+	}
+	dispatched := 0
+	for _, id := range ids {
+		inc, lerr := loadIncident(ctx, id)
+		if lerr != nil || inc == nil {
+			uc.log.Info("backfill: skip incident (load failed)",
+				slog.Uint64("incident_id", id), slog.Any("err", lerr))
+			continue
+		}
+		// Skip resolved incidents — investigating a closed alert produces
+		// stale findings and burns LLM cost for no operator benefit.
+		if inc.Status == alertmodel.IncidentStatusResolved {
+			continue
+		}
+		uc.Enqueue(ctx, inc)
+		dispatched++
+	}
+	if dispatched > 0 {
+		uc.log.Info("backfill: enqueued unstarted incidents",
+			slog.Int("count", dispatched), slog.Int("scanned", len(ids)),
+			slog.Time("since", since))
+	}
+	return dispatched, nil
 }
 
 // run is the per-investigation goroutine. context.Background is

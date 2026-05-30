@@ -1517,6 +1517,35 @@ func main() {
 		alertUC.SetInvestigator(chained)
 	}
 
+	// Boot compensation pass for the structured RCA path: incidents that
+	// fired while no LLM provider was configured had their auto-investigation
+	// silently skipped (RecordFiring nil-checks the investigator), so the
+	// IncidentDetail page would show status=not_started forever. Now that
+	// the investigator is wired, re-enqueue any unstarted incidents in the
+	// last 24h through the normal severity / inflight / concurrency-cap
+	// gates. Bounded by limit=100 to cap the LLM burst (the global
+	// concurrency cap further damps it). Goroutine + brief detached ctx so
+	// boot doesn't block on the DB scan.
+	if rcaInvConcrete != nil {
+		go func() {
+			bfCtx, bfCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer bfCancel()
+			n, err := rcaInvConcrete.BackfillUnstartedIncidents(
+				bfCtx,
+				time.Now().Add(-24*time.Hour),
+				100,
+				alertUC.GetIncident,
+			)
+			if err != nil {
+				log.Warn("alert: unstarted-investigation backfill failed", slog.Any("err", err))
+				return
+			}
+			if n > 0 {
+				log.Info("alert: backfilled unstarted investigations on boot", slog.Int("dispatched", n))
+			}
+		}()
+	}
+
 	alertSvc := managersvcalert.New(alertUC, alertRepo, notifyRouter, log.With(slog.String("comp", "alert-svc")))
 	// Wire the read-only preview clients (Prom range + Loki range). Each
 	// is optional — when nil, the corresponding kind returns
