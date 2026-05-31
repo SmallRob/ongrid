@@ -35,10 +35,11 @@ const (
 // of the user message. System-Reminder 周期注入 — kept as
 // a constant so audit / red-team grep can locate every injected block.
 //
-// PR-6: the block content is the bare hardcoded constraints (web-search
-// gate, "do not loop on the same failing tool"); the configurable
-// criticalReminder field on agent persona lands in a
-// later PR (TODO marked in injectSystemReminder below).
+// Block content (see buildSystemReminder below): hardcoded baseline
+// constraints + per-turn dynamic hints (consecutive-failure /
+// iteration-count / repeated-call heuristics, calcDynamicHints in
+// chatruntime/runtime.go) + the persona criticalReminder when a worker
+// persona is active.
 const SystemReminderTag = "system-reminder"
 
 // BuildReActGraph constructs the wrapper graph + inner ReAct subgraph

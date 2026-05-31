@@ -1026,10 +1026,10 @@ func main() {
 
 	// manager/aiops biz + service + server.
 	//
-	// BudgetChecker is intentionally nil for MVP (unlimited). When a daily
-	// token budget lands, wire an llm.BudgetChecker here from cfg; the
-	// Config.OpenAI struct will need a DailyTokenLimit field. TODO(phase-2d):
-	// plumb budget.
+	// BudgetChecker wiring: cfg.LLM.DailyTokenLimit (ONGRID_LLM_DAILY_TOKEN_LIMIT,
+	// default 0=unlimited) drives an llm.InMemoryBudget that the graph-layer
+	// callback chain checks before each ChatModel turn — see Phase 4 cbDeps
+	// build below where the checker is set when the limit > 0.
 	aiopsRepo := manageraiopsdata.NewBizRepo(db)
 	// PromQuerier is the interface tools/registry takes; passing a typed-nil
 	// *Client would yield a non-nil interface and bypass the conditional
@@ -2607,8 +2607,10 @@ specialist 名单（subagent_type 参数）：
 	})
 
 	// 4. Callback deps. Persistence/Audit/Metrics use the same
-	//    SessionRepo + Registerer threaded everywhere. Budget gate
-	//    stays nil for MVP (matches legacy agent path).
+	//    SessionRepo + Registerer threaded everywhere. Budget gate is
+	//    wired when LLM.DailyTokenLimit > 0 — single global UTC-day cap
+	//    enforced against llm.InMemoryBudget (sufficient for the
+	//    private-MVP single-tenant scope).
 	cbDeps := aiopsgraphcb.Deps{
 		Persistence: aiopsgraphcb.PersistenceDeps{
 			Repo:       sessions,
@@ -2621,6 +2623,12 @@ specialist 名单（subagent_type 参数）：
 		Metrics: aiopsgraphcb.MetricsDeps{
 			Registerer: reg,
 		},
+	}
+	if cfg.LLM.DailyTokenLimit > 0 {
+		cbDeps.BudgetChecker = llm.NewInMemoryBudget(cfg.LLM.DailyTokenLimit)
+		log.Info("aiops: daily token budget enabled",
+			slog.Int("daily_limit", cfg.LLM.DailyTokenLimit),
+		)
 	}
 
 	// 5. Stitch the runtime.

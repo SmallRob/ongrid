@@ -103,6 +103,13 @@ type Message struct {
 	Content          *string `gorm:"type:text"`
 	ToolCallID       *string `gorm:"size:64;column:tool_call_id"`
 	ToolName         *string `gorm:"size:64;column:tool_name"`
+	// Model is the LLM model id that produced this message — only set on
+	// role=assistant rows. Lets the SPA show per-message provenance ("the
+	// answer above came from glm-4-plus; the answer below from opus") and
+	// keeps the audit trail honest when the default routing switches
+	// mid-session. Nullable for back-compat with rows written before the
+	// column existed.
+	Model            *string `gorm:"size:64"`
 	PromptTokens     *int    `gorm:"column:prompt_tokens"`
 	CompletionTokens *int    `gorm:"column:completion_tokens"`
 	CreatedAt        time.Time

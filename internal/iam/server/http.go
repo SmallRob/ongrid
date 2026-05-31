@@ -8,6 +8,9 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -20,10 +23,121 @@ import (
 	"github.com/ongridio/ongrid/internal/pkg/tenantctx"
 )
 
+// loginThrottle caps failed-login bursts to defeat naive bruteforce /
+// password-spray. Keyed by client IP AND by email (whichever trips first
+// blocks both). Tracked entirely in-process: a single-manager MVP doesn't
+// need Redis. Restart drains the counter — that's a feature, not a bug,
+// because operator-grade attackers will reuse the same key after restart
+// anyway and we'd rather not over-engineer.
+type loginThrottle struct {
+	mu      sync.Mutex
+	byIP    map[string]*throttleSlot
+	byEmail map[string]*throttleSlot
+}
+
+type throttleSlot struct {
+	count    int
+	windowAt time.Time
+}
+
+const (
+	// IP-level limit: looser, since one IP may legitimately host multiple
+	// users (NAT, office gateway).
+	loginIPLimit       = 20
+	loginIPWindow      = 5 * time.Minute
+	// Email-level limit: tighter — anyone trying 6+ passwords against
+	// admin@x in 15min is hostile.
+	loginEmailLimit  = 6
+	loginEmailWindow = 15 * time.Minute
+)
+
+func newLoginThrottle() *loginThrottle {
+	return &loginThrottle{
+		byIP:    map[string]*throttleSlot{},
+		byEmail: map[string]*throttleSlot{},
+	}
+}
+
+// check returns ErrTooManyAttempts iff the (ip, email) pair has already
+// burnt through either window. It does NOT consume a slot — callers
+// invoke recordFailure after the auth check, so successful logins don't
+// burn budget.
+func (t *loginThrottle) check(ip, email string) error {
+	now := time.Now()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if exceeded(t.byIP[ip], now, loginIPLimit, loginIPWindow) {
+		return errs.ErrTooManyAttempts
+	}
+	if exceeded(t.byEmail[email], now, loginEmailLimit, loginEmailWindow) {
+		return errs.ErrTooManyAttempts
+	}
+	return nil
+}
+
+// recordFailure bumps both counters on a failed login. Resets the window
+// when expired (sliding-window approximation: each new failure outside
+// the current window starts a fresh one).
+func (t *loginThrottle) recordFailure(ip, email string) {
+	now := time.Now()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.byIP[ip] = bump(t.byIP[ip], now, loginIPWindow)
+	t.byEmail[email] = bump(t.byEmail[email], now, loginEmailWindow)
+}
+
+// recordSuccess clears the email-keyed slot — a real user who finally
+// gets their password right shouldn't stay throttled. IP keeps its
+// counter (the IP might still be hosting an attack against other users).
+func (t *loginThrottle) recordSuccess(email string) {
+	t.mu.Lock()
+	delete(t.byEmail, email)
+	t.mu.Unlock()
+}
+
+func exceeded(s *throttleSlot, now time.Time, limit int, window time.Duration) bool {
+	if s == nil {
+		return false
+	}
+	if now.Sub(s.windowAt) > window {
+		return false
+	}
+	return s.count >= limit
+}
+
+func bump(s *throttleSlot, now time.Time, window time.Duration) *throttleSlot {
+	if s == nil || now.Sub(s.windowAt) > window {
+		return &throttleSlot{count: 1, windowAt: now}
+	}
+	s.count++
+	return s
+}
+
+// clientIP returns the request's best-effort source IP. Trusts
+// X-Forwarded-For ONLY when the request came in via a known reverse
+// proxy header — the manager sits behind nginx in production, and nginx
+// always overwrites Forwarded* itself, so the first hop in XFF is the
+// real client. The TCP RemoteAddr is the nginx address otherwise.
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// First comma-separated entry is the original client.
+		if i := strings.IndexByte(xff, ','); i > 0 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	addr := r.RemoteAddr
+	if i := strings.LastIndexByte(addr, ':'); i > 0 {
+		return addr[:i]
+	}
+	return addr
+}
+
 // Handler bundles the Service with its logger and exposes chi routers.
 type Handler struct {
-	svc *service.Service
-	log *slog.Logger
+	svc       *service.Service
+	log       *slog.Logger
+	throttle  *loginThrottle
 }
 
 // NewHandler builds the iam HTTP handler bundle. Callers register routes
@@ -31,7 +145,7 @@ type Handler struct {
 // and protected endpoints can share the same URL prefix despite differing
 // middleware chains.
 func NewHandler(svc *service.Service, log *slog.Logger) *Handler {
-	return &Handler{svc: svc, log: log}
+	return &Handler{svc: svc, log: log, throttle: newLoginThrottle()}
 }
 
 // RegisterPublic attaches routes that DO NOT require an auth token.
@@ -110,22 +224,37 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	// TODO: rate-limit login attempts (per-IP or per-email) before Phase 3.
+	ip := clientIP(r)
+	emailKey := strings.ToLower(strings.TrimSpace(in.Email))
+	if err := h.throttle.check(ip, emailKey); err != nil {
+		auditmw.SetAuditEvent(r, bizaudit.Event{
+			Action:       auditmodel.ActionAuthLoginFailed,
+			ResourceType: auditmodel.ResourceAuth,
+			ResourceID:   emailKey,
+			UserEmail:    emailKey,
+			Status:       auditmodel.StatusFailure,
+			ErrorMessage: "rate limited",
+		})
+		writeErr(w, err)
+		return
+	}
 	pair, err := h.svc.Login(r.Context(), in.Email, in.Password)
 	if err != nil {
+		h.throttle.recordFailure(ip, emailKey)
 		// HLD-010: record failed login. UserID stays nil; email comes
 		// from request body so we can spot password-spraying patterns.
 		auditmw.SetAuditEvent(r, bizaudit.Event{
 			Action:       auditmodel.ActionAuthLoginFailed,
 			ResourceType: auditmodel.ResourceAuth,
-			ResourceID:   in.Email,
-			UserEmail:    in.Email,
+			ResourceID:   emailKey,
+			UserEmail:    emailKey,
 			Status:       auditmodel.StatusFailure,
 			ErrorMessage: err.Error(),
 		})
 		writeErr(w, err)
 		return
 	}
+	h.throttle.recordSuccess(emailKey)
 	// Successful login no longer audited (operator flagged the row
 	// volume — auth_login_failed below stays for security). The
 	// resulting JWT carries user_id + email; subsequent mutating

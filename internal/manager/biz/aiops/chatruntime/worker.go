@@ -569,6 +569,7 @@ func (rt *Runtime) runWorker(ctx context.Context, agentDef *Agent, sessID, userT
 		// deps; we keep the worker's session id flowing into them too).
 		deps := rt.cfg.CallbackDeps
 		deps.Persistence.SessionID = sessID
+		deps.Persistence.Model = agentDef.Model
 		if deps.Persistence.Repo == nil {
 			deps.Persistence.Repo = rt.cfg.Sessions
 		}

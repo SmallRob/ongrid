@@ -14,9 +14,10 @@ import (
 //     unless the coordinator itself is also persona-driven)
 //  3. for each active skill, a `[能力: <name>]` header + skill PromptBody
 //
-// PR-2 scope: this is a pure string assembly — no per-turn system-reminder
-// injection. That happens in the graph layer; the TODO
-// inline below points to where it lands.
+// Pure string assembly — no per-turn system-reminder injection. That
+// happens in the graph layer (graph.buildSystemReminder is called by
+// graph.assembleMessages on every turn so the block survives long-
+// session attention drift), not here.
 func ComposeSystemPrompt(basePrompt string, activeSkills []*Skill, agentProfile *Agent) string {
 	var parts []string
 
@@ -57,10 +58,6 @@ func ComposeSystemPrompt(basePrompt string, activeSkills []*Skill, agentProfile 
 		}
 		parts = append(parts, header+"\n\n"+body)
 	}
-
-	// TODO(PR-graph): per-turn <system-reminder> injection happens at
-	// the graph MessageAssembler stage, not here.
-	// ComposeSystemPrompt only owns the system-message body.
 
 	return strings.Join(parts, "\n\n")
 }

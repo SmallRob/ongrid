@@ -566,6 +566,7 @@ func (rt *Runtime) Handle(ctx context.Context, req *Request) (*Reply, error) {
 	//    cutover layer's emitter when req.Emit != nil.
 	deps := rt.cfg.CallbackDeps
 	deps.Persistence.SessionID = sess.ID
+	deps.Persistence.Model = strings.TrimSpace(req.Model)
 	if deps.Persistence.Repo == nil {
 		deps.Persistence.Repo = rt.cfg.Sessions
 	}

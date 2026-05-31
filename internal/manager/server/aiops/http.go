@@ -252,7 +252,11 @@ type messageDTO struct {
 	Content    string    `json:"content,omitempty"`
 	ToolCallID string    `json:"tool_call_id,omitempty"`
 	ToolName   string    `json:"tool_name,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
+	// Model carries the LLM model id that produced the message — only
+	// populated for role=assistant rows where the routing layer recorded
+	// it. Older rows return "" so the SPA can fall back to "default".
+	Model     string    `json:"model,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type listMessagesResp struct {
@@ -773,6 +777,9 @@ func toMessageDTO(m *model.Message) messageDTO {
 	}
 	if m.ToolName != nil {
 		out.ToolName = *m.ToolName
+	}
+	if m.Model != nil {
+		out.Model = *m.Model
 	}
 	return out
 }
