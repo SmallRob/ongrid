@@ -118,6 +118,9 @@ func TestRCA_InvestigationPipeline_F1(t *testing.T) {
 	}
 	if incidentID == 0 {
 		_, list, _ := env.DoJSON("GET", "/api/v1/alerts/incidents", nil, pair.AccessToken)
+		_, ruleList, _ := env.DoJSON("GET", "/api/v1/alert-rules", nil, pair.AccessToken)
+		t.Logf("rule list (sanity — confirms our POST landed): %v", ruleList)
+		t.Logf("manager logs filtered:\n%s", filterRelevant(env.ManagerLogs()))
 		t.Fatalf("no incident with rule_key=%q within 45s; list=%v", ruleKey, list)
 	}
 

@@ -5,6 +5,7 @@ package testenv
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,10 +15,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 
 	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 )
@@ -157,6 +161,14 @@ func Start(t *testing.T, opts ...Option) *Env {
 		// investigator / agent paths look "not wired". Default the
 		// harness to the same kernel production runs on.
 		"ONGRID_AGENT_KERNEL": "graph",
+		// Tell the chatruntime loader where to find the agent + skill
+		// markdown files. The manager binary is spawned in a tempdir so
+		// the default `./agents` / `./skills` relative paths don't
+		// resolve to the repo. Without this, personas like
+		// "incident-investigator" fail to register and the RCA worker
+		// errors out with "agent ... not found".
+		"ONGRID_BUILTIN_AGENTS_ROOT": filepath.Join(repoRoot(), "agents"),
+		"ONGRID_BUILTIN_SKILLS_ROOT": filepath.Join(repoRoot(), "skills"),
 		// No frontier broker in the harness — disable the geminio dial
 		// so manager comes up without waiting on a non-existent broker.
 		// Edge-tunnel-only features (webssh, edge reverse calls) error
@@ -305,9 +317,9 @@ func (e *Env) Login(email, password string) LoginResult {
 // ─── internals ──────────────────────────────────────────────────────────
 
 var (
-	mysqlOnce sync.Once
-	mysqlDSN  string
-	mysqlErr  error
+	mysqlOnce     sync.Once
+	mysqlHostPort string
+	mysqlErr      error
 
 	binaryOnce sync.Once
 	binaryPath string
@@ -317,8 +329,12 @@ var (
 )
 
 // sharedMySQL brings up one MySQL container per `go test` process and
-// returns its DSN. Each test gets a unique schema name when it calls
-// Start, so they don't collide on table state.
+// returns a DSN pointing at the `ongrid` schema. Tests share the schema
+// but each Start truncates the cross-test-leaky tables (system_settings,
+// alert_rules, alert_incidents, alert_events) BEFORE the manager spawns —
+// without that, E1's fake-prom URL (random port) lands in
+// system_settings.prom.query_url, persists into F1's run, and F1's
+// PromResolver returns the dead URL ("connection refused" → no fire).
 func sharedMySQL(t *testing.T) string {
 	t.Helper()
 	mysqlOnce.Do(func() {
@@ -354,13 +370,50 @@ func sharedMySQL(t *testing.T) string {
 			mysqlErr = err
 			return
 		}
-		mysqlDSN = fmt.Sprintf("ongrid:ongrid@tcp(%s:%s)/ongrid?parseTime=true&charset=utf8mb4&loc=Local",
-			host, port.Port())
+		mysqlHostPort = fmt.Sprintf("%s:%s", host, port.Port())
 	})
 	if mysqlErr != nil {
 		t.Fatalf("testenv: %v", mysqlErr)
 	}
-	return mysqlDSN
+
+	dsn := fmt.Sprintf("ongrid:ongrid@tcp(%s)/ongrid?parseTime=true&charset=utf8mb4&loc=Local&multiStatements=true",
+		mysqlHostPort)
+	// Reset cross-test-leaky tables. The first Start in a process finds
+	// no tables (AutoMigrate runs on manager bring-up); IGNORE so we
+	// don't fail before the first migration. Subsequent Starts wipe the
+	// state that pinned URLs / rules / incidents.
+	resetSQL := strings.Join([]string{
+		"DROP TABLE IF EXISTS system_settings",
+		"DROP TABLE IF EXISTS alert_rules",
+		"DROP TABLE IF EXISTS alert_incidents",
+		"DROP TABLE IF EXISTS alert_events",
+		"DROP TABLE IF EXISTS investigation_reports",
+		"DROP TABLE IF EXISTS notification_channels",
+		"DROP TABLE IF EXISTS notification_dispatches",
+		"DROP TABLE IF EXISTS chat_sessions",
+		"DROP TABLE IF EXISTS chat_messages",
+		"DROP TABLE IF EXISTS chat_tool_calls",
+		"DROP TABLE IF EXISTS audit_events",
+		"DROP TABLE IF EXISTS users",
+		"DROP TABLE IF EXISTS orgs",
+		"DROP TABLE IF EXISTS memberships",
+		"DROP TABLE IF EXISTS user_agents",
+	}, ";")
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatalf("testenv: open: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(resetSQL); err != nil {
+		// Don't fail on first-Start (no tables yet); only flag if it's a
+		// surprise auth / connection error.
+		if !strings.Contains(err.Error(), "Unknown table") {
+			// MySQL 8 returns ER_BAD_TABLE_ERROR 1051 for the first wipe
+			// run; treat anything else as fatal so a real issue surfaces.
+			t.Logf("testenv: reset tables (first-Start expected): %v", err)
+		}
+	}
+	return dsn
 }
 
 // managerBinary builds cmd/ongrid once per `go test` and returns the
