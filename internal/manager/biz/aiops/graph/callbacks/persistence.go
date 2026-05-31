@@ -45,6 +45,10 @@ type PersistenceDeps struct {
 	Repo       biz.SessionRepo
 	Logger     *slog.Logger
 	Registerer prometheus.Registerer
+	// Model is the LLM model id the cutover layer routed this run to.
+	// Persisted on each role=assistant chat_messages row so the SPA can
+	// surface per-message provenance. Empty → column stays NULL.
+	Model string
 }
 
 // PersistenceHandler writes chat_messages + chat_tool_calls rows as
@@ -258,6 +262,10 @@ func (h *PersistenceHandler) persistAssistant(ctx context.Context, mo *einomodel
 		SessionID: h.deps.SessionID,
 		Role:      string(msg.Role),
 		CreatedAt: time.Now().UTC(),
+	}
+	if h.deps.Model != "" {
+		m := h.deps.Model
+		row.Model = &m
 	}
 	if msg.Content != "" {
 		c := msg.Content

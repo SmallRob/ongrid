@@ -301,6 +301,13 @@ type LLMConfig struct {
 	// specify Provider. Empty → first configured provider (deterministic
 	// alphabetical ordering, see llm.NewMultiClient).
 	Default string
+	// DailyTokenLimit is the global per-UTC-day token ceiling enforced
+	// against the BudgetChecker callback. <=0 means unlimited (the
+	// historical MVP default). Single-tenant scope — when the platform
+	// goes multi-tenant the limit moves into per-org settings and this
+	// stays as a safety-net global cap.
+	// env: ONGRID_LLM_DAILY_TOKEN_LIMIT; default 0 (unlimited).
+	DailyTokenLimit int
 }
 
 // AdminConfig holds bootstrap admin credentials. Used only by the cloud
@@ -400,6 +407,7 @@ func Load() (*Config, error) {
 	c.LLM.Kimi.BaseURL = getEnv("ONGRID_KIMI_BASE_URL", "")
 	c.LLM.Kimi.Models = splitProviderModels(getEnv("ONGRID_KIMI_MODELS", "kimi-k2.6,kimi-k2.5,moonshot-v1-128k"))
 	c.LLM.Default = getEnv("ONGRID_LLM_DEFAULT_PROVIDER", "")
+	c.LLM.DailyTokenLimit = getEnvInt("ONGRID_LLM_DAILY_TOKEN_LIMIT", 0)
 
 	c.Admin.Email = getEnv("ONGRID_ADMIN_EMAIL", "")
 	c.Admin.Password = getEnv("ONGRID_ADMIN_PASSWORD", "")

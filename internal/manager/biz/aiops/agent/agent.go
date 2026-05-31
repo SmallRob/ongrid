@@ -373,10 +373,12 @@ func (a *Agent) runInternal(ctx context.Context, sessionID string, userID uint64
 		}
 		pt := resp.Usage.PromptTokens
 		ct := resp.Usage.CompletionTokens
+		modelTag := effectiveModel
 		asstRow := &model.Message{
 			SessionID:        sess.ID,
 			Role:             model.RoleAssistant,
 			Content:          asstContentPtr,
+			Model:            stringPtrIfSet(modelTag),
 			PromptTokens:     &pt,
 			CompletionTokens: &ct,
 			CreatedAt:        time.Now().UTC(),
@@ -629,6 +631,7 @@ func (a *Agent) runInternal(ctx context.Context, sessionID string, userID uint64
 		SessionID: sess.ID,
 		Role:      model.RoleAssistant,
 		Content:   &apology,
+		Model:     stringPtrIfSet(effectiveModel),
 		CreatedAt: time.Now().UTC(),
 	}
 	if err := a.sessions.AppendMessage(ctx, finalMsg); err == nil {
@@ -741,6 +744,15 @@ func filterToolSchemas(schemas []llm.ToolSchema, excludeNames ...string) []llm.T
 		out = append(out, s)
 	}
 	return out
+}
+
+// stringPtrIfSet returns &s when s is non-empty, otherwise nil. Used to
+// avoid writing zero-length values into nullable *string columns.
+func stringPtrIfSet(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // classifyToolOutcome decides the status + error + resultJSON triple to

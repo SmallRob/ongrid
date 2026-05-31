@@ -19,6 +19,10 @@ var (
 	ErrEdgeOffline    = errors.New("edge offline")
 	ErrBudgetExceeded = errors.New("budget exceeded")
 	ErrNotWiredYet    = errors.New("not wired yet")
+	// ErrTooManyAttempts is the 429-mapped sentinel for short-window
+	// rate-limited paths (e.g. login). Distinct from ErrBudgetExceeded
+	// so loggers / metrics can tell anti-bruteforce from quota throttle.
+	ErrTooManyAttempts = errors.New("too many attempts")
 )
 
 // HTTPStatus maps known sentinel errors to HTTP status codes.
@@ -37,7 +41,7 @@ func HTTPStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, ErrInvalid):
 		return http.StatusBadRequest
-	case errors.Is(err, ErrBudgetExceeded):
+	case errors.Is(err, ErrBudgetExceeded), errors.Is(err, ErrTooManyAttempts):
 		return http.StatusTooManyRequests
 	case errors.Is(err, ErrEdgeOffline):
 		return http.StatusServiceUnavailable
