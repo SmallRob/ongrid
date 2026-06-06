@@ -126,21 +126,21 @@ export default function ReportsPage() {
               <Link
                 key={r.id}
                 to={`/reports/${r.id}`}
-                className="block rounded-lg border border-zinc-800 bg-zinc-900/40 p-3.5 hover:border-zinc-700"
+                className="block rounded-lg border border-zinc-800 bg-zinc-900/40 px-3.5 py-2.5 hover:border-zinc-700"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="truncate font-medium text-zinc-100">{r.title}</span>
+                  <span className="truncate text-sm font-medium text-zinc-100">{r.title}</span>
                   <span
                     className={cn(
-                      'shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-medium',
+                      'shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium',
                       STATUS_STYLE[r.status],
                     )}
                   >
                     {r.status}
                   </span>
                 </div>
-                {r.summary && <p className="mt-1 truncate text-sm text-zinc-400">{r.summary}</p>}
-                <div className="mt-1.5 text-xs text-zinc-600">
+                {r.summary && <p className="mt-0.5 truncate text-xs text-zinc-400">{r.summary}</p>}
+                <div className="mt-1 text-[11px] text-zinc-600">
                   {r.generated_at
                     ? tr(`生成于 ${relativeTime(r.generated_at)}`, `Generated ${relativeTime(r.generated_at)}`)
                     : tr(`创建于 ${relativeTime(r.created_at)}`, `Created ${relativeTime(r.created_at)}`)}

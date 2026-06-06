@@ -1544,9 +1544,16 @@ func main() {
 	var reportHandler *managerserverreport.Handler
 	if reportRT, ok := aiopsRuntime.(*aiopschatruntime.Runtime); ok && reportRT != nil {
 		reportRepo := managerreportdata.NewRepo(db)
+		// Pass the prom query client for fleet resource trends; a typed-nil
+		// guard mirrors the tools wiring so a missing client stays a clean
+		// untyped nil (collector degrades Resource.Available=false).
+		var reportProm managerreportdata.PromQuerier
+		if promQueryClient != nil {
+			reportProm = promQueryClient
+		}
 		reportGen := managerbizreport.NewWorkerGenerator(
 			reportRepo,
-			managerreportdata.NewFactsCollector(db),
+			managerreportdata.NewFactsCollector(db, reportProm),
 			reportRT,
 			managerbizreport.GeneratorConfig{
 				DefaultLocale: firstNonEmpty(os.Getenv("ONGRID_DEFAULT_LOCALE"), "en"),

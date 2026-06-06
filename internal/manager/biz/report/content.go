@@ -19,11 +19,17 @@ import (
 // into the report. The LLM owns only Narrative / KeyIncidents ordering
 // commentary / Advice.
 type Content struct {
-	Version      string         `json:"version"`
-	Hero         []HeroStat     `json:"hero"`
-	Narrative    Narrative      `json:"narrative"`
+	Version   string    `json:"version"`
+	Hero      []HeroStat `json:"hero"`
+	Narrative Narrative  `json:"narrative"`
+	// Resource / Fleet / Changes are facts-injected (the generator
+	// overwrites them from ReportFacts post-LLM); the agent never
+	// produces them. Reuse the facts types — same JSON shape.
+	Resource     ResourceFacts  `json:"resource"`
+	Fleet        FleetFacts     `json:"fleet"`
 	KeyIncidents []KeyIncident  `json:"key_incidents"`
 	Actions      ActionsSummary `json:"actions_summary"`
+	Changes      []ChangeFact   `json:"changes,omitempty"`
 	Advice       []Advice       `json:"advice"`
 	Metadata     ContentMeta    `json:"metadata"`
 }
@@ -165,21 +171,44 @@ func (c *Content) RenderMarkdown(title string) string {
 		b.WriteString(flattenEntities(p.Text) + "\n\n")
 	}
 
+	if c.Resource.Available {
+		b.WriteString("## 资源使用（周期 均值 / 峰值）\n\n")
+		b.WriteString(fmt.Sprintf("- CPU: 均 %.1f%% · 峰 %.1f%%\n", c.Resource.CPUAvg, c.Resource.CPUPeak))
+		b.WriteString(fmt.Sprintf("- 内存: 均 %.1f%% · 峰 %.1f%%\n", c.Resource.MemAvg, c.Resource.MemPeak))
+		b.WriteString(fmt.Sprintf("- 磁盘: 均 %.1f%% · 峰 %.1f%%\n\n", c.Resource.DiskAvg, c.Resource.DiskPeak))
+	}
+
+	b.WriteString("## 监控覆盖\n\n")
+	b.WriteString(fmt.Sprintf("- 监控设备 %d 台 · 在线 %d 台\n", c.Fleet.Total, c.Fleet.Online))
+	if len(c.Fleet.Roles) > 0 {
+		var roles []string
+		for r, n := range c.Fleet.Roles {
+			roles = append(roles, fmt.Sprintf("%s ×%d", r, n))
+		}
+		b.WriteString("- 角色: " + strings.Join(roles, " · ") + "\n")
+	}
+	b.WriteString("\n")
+
 	if len(c.KeyIncidents) > 0 {
-		b.WriteString("## 关键 incidents\n\n")
+		b.WriteString("## 告警与处置\n\n")
 		for _, ki := range c.KeyIncidents {
 			b.WriteString(fmt.Sprintf("- I-%d %s (%s, %dm, %s)\n",
 				ki.ID, ki.Title, ki.Severity, ki.DurationMin, ki.Status))
 		}
+		b.WriteString(fmt.Sprintf("- Agent 动作: mutating %d（批准 %d）· 只读 %d\n\n",
+			c.Actions.MutatingTotal, c.Actions.MutatingApproved, c.Actions.SafeTotal))
+	}
+
+	if len(c.Changes) > 0 {
+		b.WriteString("## 变更记录\n\n")
+		for _, ch := range c.Changes {
+			b.WriteString(fmt.Sprintf("- %s %s %s\n", ch.At.Format("01-02 15:04"), ch.Action, ch.ResourceName))
+		}
 		b.WriteString("\n")
 	}
 
-	b.WriteString("## Agent 执行动作\n\n")
-	b.WriteString(fmt.Sprintf("- mutating: %d（已批准 %d）· 只读: %d\n\n",
-		c.Actions.MutatingTotal, c.Actions.MutatingApproved, c.Actions.SafeTotal))
-
 	if len(c.Advice) > 0 {
-		b.WriteString("## 下周建议\n\n")
+		b.WriteString("## 建议\n\n")
 		for _, a := range c.Advice {
 			b.WriteString("- " + flattenEntities(a.Text) + "\n")
 		}

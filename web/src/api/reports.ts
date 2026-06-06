@@ -56,12 +56,39 @@ export type ActionsSummary = {
 
 export type Advice = { text: string };
 
+export type ResourceFacts = {
+  available: boolean;
+  cpu_avg: number;
+  cpu_peak: number;
+  mem_avg: number;
+  mem_peak: number;
+  disk_avg: number;
+  disk_peak: number;
+};
+
+export type FleetFacts = {
+  total: number;
+  online: number;
+  roles?: Record<string, number>;
+};
+
+export type ChangeFact = {
+  at: string;
+  action: string;
+  resource_type: string;
+  resource_name?: string;
+  actor?: string;
+};
+
 export type ReportContent = {
   version: string;
   hero: HeroStat[];
   narrative: Narrative;
+  resource: ResourceFacts;
+  fleet: FleetFacts;
   key_incidents?: KeyIncident[];
   actions_summary: ActionsSummary;
+  changes?: ChangeFact[];
   advice?: Advice[];
 };
 

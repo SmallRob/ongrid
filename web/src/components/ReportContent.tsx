@@ -4,10 +4,13 @@ import { cn } from '@/lib/cn';
 import { useI18n } from '@/i18n/locale';
 import type {
   ActionsSummary,
+  ChangeFact,
+  FleetFacts,
   HeroStat,
   KeyIncident,
   Paragraph,
   ReportContent as ReportContentT,
+  ResourceFacts,
 } from '@/api/reports';
 
 // ReportContent renders a ContentJSON report body — the rich in-app
@@ -195,29 +198,14 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
   const paras: Paragraph[] = content.narrative?.paragraphs ?? [];
   const incidents = content.key_incidents ?? [];
   const advice = content.advice ?? [];
-  const incidentCount = heroValue(content.hero, 'incidents');
-  // A calm report = no incidents this period. Drives the top banner.
-  const calm = incidents.length === 0 && incidentCount === 0;
+  const changes = content.changes ?? [];
+  const actions = content.actions_summary;
+  const hasActivity =
+    incidents.length > 0 ||
+    (actions && (actions.mutating_total > 0 || actions.safe_total > 0));
 
   return (
-    <div className="space-y-6">
-      {/* Status banner — makes a calm report read as intentional. */}
-      <div
-        className={cn(
-          'flex items-center gap-2.5 rounded-lg border px-4 py-2.5 text-sm',
-          calm
-            ? 'border-emerald-600/30 bg-emerald-500/10 text-emerald-200'
-            : 'border-amber-600/30 bg-amber-500/10 text-amber-100',
-        )}
-      >
-        <span className="text-base">{calm ? '✓' : '⚠'}</span>
-        <span>
-          {calm
-            ? tr('本周期运行平稳，未发生 incident', 'Smooth period — no incidents')
-            : tr(`本周期共 ${incidents.length} 项关键 incident`, `${incidents.length} key incident(s) this period`)}
-        </span>
-      </div>
-
+    <div className="space-y-7">
       {/* Hero stats */}
       {content.hero && content.hero.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -230,7 +218,7 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
       {/* Narrative */}
       {content.narrative?.headline && (
         <section>
-          <h2 className="mb-2 text-base font-semibold text-zinc-100">📝 {content.narrative.headline}</h2>
+          <h2 className="mb-2 text-base font-semibold text-zinc-100">{content.narrative.headline}</h2>
           {paras.length > 0 && (
             <div className="space-y-2 text-sm leading-relaxed text-zinc-300">
               {paras.map((p, i) => (
@@ -243,35 +231,50 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
         </section>
       )}
 
-      {/* Incidents — always shown, positive empty state when calm */}
-      <section>
-        <h3 className="mb-2 text-sm font-medium text-zinc-400">🚨 {tr('关键 incidents', 'Key incidents')}</h3>
-        {incidents.length > 0 ? (
+      {/* Resource trend (fleet avg/peak over the period) */}
+      {content.resource?.available && (
+        <Section title={tr('资源使用（周期 均值 / 峰值）', 'Resource usage (period avg / peak)')}>
+          <ResourcePanel r={content.resource} />
+        </Section>
+      )}
+
+      {/* Monitoring coverage */}
+      {content.fleet && content.fleet.total > 0 && (
+        <Section title={tr('监控覆盖', 'Monitoring coverage')}>
+          <FleetPanel f={content.fleet} />
+        </Section>
+      )}
+
+      {/* Changes this period */}
+      {changes.length > 0 && (
+        <Section title={tr('变更记录', 'Changes')}>
+          <div className="space-y-1">
+            {changes.map((ch, i) => (
+              <ChangeRow key={i} c={ch} />
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Alerts & response — secondary, only when there's activity */}
+      <Section title={tr('告警与处置', 'Alerts & response')}>
+        {hasActivity ? (
           <div className="space-y-1.5">
             {incidents.map((ki) => (
               <IncidentRow key={ki.id} ki={ki} />
             ))}
+            {actions && (actions.mutating_total > 0 || actions.safe_total > 0) && (
+              <ActionsPanel a={actions} />
+            )}
           </div>
         ) : (
-          <EmptyRow text={tr('本周期内无 incident', 'No incidents this period')} />
+          <EmptyRow text={tr('本周期无告警，agent 无介入', 'No alerts, no agent intervention this period')} />
         )}
-      </section>
-
-      {/* Agent actions — always shown */}
-      <section>
-        <h3 className="mb-2 text-sm font-medium text-zinc-400">⚡ {tr('Agent 执行动作', 'Agent actions')}</h3>
-        {content.actions_summary &&
-        (content.actions_summary.mutating_total > 0 || content.actions_summary.safe_total > 0) ? (
-          <ActionsPanel a={content.actions_summary} />
-        ) : (
-          <EmptyRow text={tr('本周期内 agent 未执行动作', 'No agent actions this period')} />
-        )}
-      </section>
+      </Section>
 
       {/* Recommendations */}
-      <section>
-        <h3 className="mb-2 text-sm font-medium text-zinc-400">🎯 {tr('下一步建议', 'Recommendations')}</h3>
-        {advice.length > 0 ? (
+      {advice.length > 0 && (
+        <Section title={tr('建议', 'Recommendations')}>
           <ul className="space-y-1.5 text-sm text-zinc-300">
             {advice.map((a, i) => (
               <li key={i} className="flex gap-2">
@@ -282,16 +285,93 @@ export function ReportContentView({ content }: { content: ReportContentT }) {
               </li>
             ))}
           </ul>
-        ) : (
-          <EmptyRow text={tr('暂无建议，保持现状即可', 'No recommendations — keep steady')} />
-        )}
-      </section>
+        </Section>
+      )}
     </div>
   );
 }
 
-function heroValue(hero: HeroStat[] | undefined, key: string): number {
-  return hero?.find((h) => h.key === key)?.value ?? 0;
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function ResourcePanel({ r }: { r: ResourceFacts }) {
+  const { tr } = useI18n();
+  const rows: { label: string; avg: number; peak: number }[] = [
+    { label: 'CPU', avg: r.cpu_avg, peak: r.cpu_peak },
+    { label: tr('内存', 'Memory'), avg: r.mem_avg, peak: r.mem_peak },
+    { label: tr('磁盘', 'Disk'), avg: r.disk_avg, peak: r.disk_peak },
+  ];
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {rows.map((row) => (
+        <div key={row.label} className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+          <div className="text-[11px] uppercase tracking-wide text-zinc-500">{row.label}</div>
+          <div className="mt-1 flex items-baseline gap-3">
+            <span>
+              <span className="text-lg font-semibold tabular-nums text-zinc-100">{row.avg.toFixed(1)}</span>
+              <span className="text-xs text-zinc-500">% {tr('均', 'avg')}</span>
+            </span>
+            <span className="text-zinc-700">·</span>
+            <span>
+              <span className="text-sm tabular-nums text-zinc-300">{row.peak.toFixed(1)}</span>
+              <span className="text-xs text-zinc-500">% {tr('峰', 'peak')}</span>
+            </span>
+          </div>
+          {/* thin utilisation bar (peak) */}
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-zinc-800">
+            <div
+              className={cn(
+                'h-full rounded-full',
+                row.peak >= 85 ? 'bg-red-500' : row.peak >= 60 ? 'bg-amber-500' : 'bg-indigo-500',
+              )}
+              style={{ width: `${Math.min(100, Math.max(2, row.peak))}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FleetPanel({ f }: { f: FleetFacts }) {
+  const { tr } = useI18n();
+  const roles = f.roles ?? {};
+  return (
+    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-sm text-zinc-300">
+      <div>
+        {tr('监控设备', 'Devices')}: <span className="font-medium text-zinc-100">{f.total}</span>
+        {' · '}
+        {tr('在线', 'Online')}: <span className="font-medium text-zinc-100">{f.online}</span>
+        {f.total > 0 && <span className="text-zinc-500"> ({Math.round((f.online / f.total) * 100)}%)</span>}
+      </div>
+      {Object.keys(roles).length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {Object.entries(roles).map(([role, n]) => (
+            <span key={role} className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
+              {role} ×{n}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChangeRow({ c }: { c: ChangeFact }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/30 px-3 py-1.5 text-xs text-zinc-400">
+      <span className="tabular-nums text-zinc-500">{c.at.slice(5, 16).replace('T', ' ')}</span>
+      <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-300">{c.action}</span>
+      {c.resource_name && <span className="truncate text-zinc-400">{c.resource_name}</span>}
+      {c.actor && <span className="ml-auto shrink-0 text-zinc-600">{c.actor}</span>}
+    </div>
+  );
 }
 
 function EmptyRow({ text }: { text: string }) {

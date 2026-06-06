@@ -152,18 +152,20 @@ func (g *workerGenerator) generate(ctx context.Context, rpt *model.Report) error
 		return fmt.Errorf("parse content: %w", err)
 	}
 
-	// Defense-in-depth: overwrite every SQL-true field from facts so the
-	// LLM owns only prose. Hero + Actions are pure numbers; KeyIncidents
-	// ids/durations/status are SQL-true but we preserve the LLM's
-	// root-cause snippet by matching on id.
+	// Defense-in-depth: overwrite every fact-derived field from facts so
+	// the LLM owns only prose (narrative + advice). Resource / Fleet /
+	// Changes / Hero / Actions are all data-true and injected here.
 	content.Hero = facts.Hero
+	content.Resource = facts.Resource
+	content.Fleet = facts.Fleet
 	content.Actions = facts.Actions
+	content.Changes = facts.Changes
 	content.KeyIncidents = mergeIncidents(facts.Incidents, content.KeyIncidents)
 	content.Version = ContentVersion
 	content.Metadata = ContentMeta{
 		PeriodStart: period.Start.Format(time.RFC3339),
 		PeriodEnd:   period.End.Format(time.RFC3339),
-		DataSources: []string{"incidents", "audit_log", "proposals", "edges"},
+		DataSources: []string{"prometheus", "incidents", "audit_log", "proposals", "devices"},
 	}
 
 	rpt.ContentJSON = content.MustJSON()
