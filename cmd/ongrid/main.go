@@ -118,6 +118,7 @@ import (
 	manageraudtdata "github.com/ongridio/ongrid/internal/manager/data/audit/store"
 	managerbizreport "github.com/ongridio/ongrid/internal/manager/biz/report"
 	managerreportdata "github.com/ongridio/ongrid/internal/manager/data/report/store"
+	managerserverreport "github.com/ongridio/ongrid/internal/manager/server/report"
 	managerserveraiops "github.com/ongridio/ongrid/internal/manager/server/aiops"
 	managerserveralert "github.com/ongridio/ongrid/internal/manager/server/alert"
 	managerserveraudit "github.com/ongridio/ongrid/internal/manager/server/audit"
@@ -1534,10 +1535,13 @@ func main() {
 		alertUC.SetInvestigator(chained)
 	}
 
-	// Report scheduler (HLD-014): scheduled operational reports. Wired
-	// only when the chat runtime is the graph kernel — the reporter
+	// Report scheduler + API (HLD-014): scheduled operational reports.
+	// Wired only when the chat runtime is the graph kernel — the reporter
 	// worker spawns through the same SpawnWorker seam the investigator
-	// uses. New tables / new goroutine; no impact on existing startup.
+	// uses. New tables / new goroutine / new routes; no impact on
+	// existing startup. reportHandler stays nil when not wired so the
+	// route-mount block below skips it.
+	var reportHandler *managerserverreport.Handler
 	if reportRT, ok := aiopsRuntime.(*aiopschatruntime.Runtime); ok && reportRT != nil {
 		reportRepo := managerreportdata.NewRepo(db)
 		reportGen := managerbizreport.NewWorkerGenerator(
@@ -1549,11 +1553,13 @@ func main() {
 			},
 			log,
 		)
-		reportUC := managerbizreport.NewUsecase(reportRepo, reportGen, uuid.NewString)
+		reportUC := managerbizreport.NewUsecase(reportRepo, reportGen, uuid.NewString).
+			WithReadRepo(reportRepo)
 		managerbizreport.NewScheduler(reportUC, log).Start(rootCtx)
-		log.Info("report: scheduler started")
+		reportHandler = managerserverreport.NewHandler(reportUC)
+		log.Info("report: scheduler + API wired")
 	} else {
-		log.Info("report: scheduler not wired (chat runtime is not the graph kernel)")
+		log.Info("report: not wired (chat runtime is not the graph kernel)")
 	}
 
 	// Boot compensation pass for the structured RCA path: incidents that
@@ -1825,8 +1831,18 @@ func main() {
 			marketplaceHandler.Register(protected)
 			promProxyHandler.RegisterProtected(protected)
 			managerserveraudit.NewHandler(auditUC).Register(protected)
+			if reportHandler != nil {
+				reportHandler.Register(protected)
+			}
 		})
 	})
+
+	// Public (unauthenticated) report share route: /r/{token}. Mounted
+	// on the root mux outside the auth group so a shared report opens
+	// without a login (30-day TTL enforced in the biz layer).
+	if reportHandler != nil {
+		reportHandler.RegisterPublic(mux)
+	}
 
 	apiServer := httpserver.New(cfg.HTTPAddr, mux, log.With(slog.String("listener", "api")))
 

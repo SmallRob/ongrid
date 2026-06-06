@@ -58,10 +58,14 @@ func (nopGenerator) Generate(context.Context, string) {}
 
 // Usecase is the report business logic.
 type Usecase struct {
-	repo Repo
-	gen  Generator
+	repo  Repo
+	read  ReadRepo // attached via WithReadRepo for the API path; nil on the scheduler-only path
+	gen   Generator
 	idGen IDGen
 }
+
+// errExpiredShare is returned when a share token has passed its TTL.
+var errExpiredShare = errors.Join(errs.ErrNotFound, errors.New("share link expired"))
 
 // NewUsecase builds the Usecase. A nil Generator falls back to the
 // no-op (report stays pending — useful in PR-1 tests and before PR-2
