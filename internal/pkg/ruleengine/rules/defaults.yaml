@@ -1,0 +1,339 @@
+# Default AIOps rule set for the ongrid rule engine.
+# Organized by category: system, network, database, application, security.
+# Patterns prefixed with "re:" are compiled as Go regular expressions;
+# all other patterns are matched as case-insensitive keywords.
+
+rules:
+  # ========== system ==========
+  - id: sys-cpu-high
+    title: "CPU High Load"
+    description: "CPU usage exceeds 90% sustained; investigate runaway processes or insufficient capacity."
+    category: system
+    tags: [cpu, performance, load]
+    patterns:
+      - cpu
+      - "high load"
+      - "load average"
+      - "re:cpu.*(?:usage|util).*[89]\\d%"
+      - steal
+    priority: 90
+    response: |
+      1) Run `top -b -n 1` to identify top consumers.
+      2) Check for runaway jobs with `ps aux --sort=-%cpu`.
+      3) If steal time is high, suspect noisy-neighbor on the hypervisor.
+      4) Consider scaling up or distributing workload.
+    conditions: {}
+    enabled: true
+
+  - id: sys-disk-full
+    title: "Disk Space Exhaustion"
+    description: "Disk usage above threshold; risk of write failures and service outages."
+    category: system
+    tags: [disk, storage, space]
+    patterns:
+      - "disk full"
+      - "disk space"
+      - "no space left"
+      - "re:disk.*(?:usage|util).*9[0-9]%"
+      - inode
+    priority: 95
+    response: |
+      1) Run `df -h` and `df -i` to identify full partitions.
+      2) Clear old logs: `journalctl --vacuum-size=500M`.
+      3) Find large files: `du -sh /* | sort -rh | head`.
+      4) Expand volume or move data if needed.
+    conditions: {}
+    enabled: true
+
+  - id: sys-memory-leak
+    title: "Memory Leak / OOM"
+    description: "Process memory growing unbounded or OOM-killer triggered."
+    category: system
+    tags: [memory, oom, leak]
+    patterns:
+      - "memory leak"
+      - oom
+      - "out of memory"
+      - "re:memory.*(?:usage|util).*9[0-9]%"
+      - "kill process"
+    priority: 90
+    response: |
+      1) Check dmesg for OOM-killer logs.
+      2) Review `/proc/<pid>/status` for RSS growth.
+      3) Use `valgrind` or `pprof` for leak analysis.
+      4) Set cgroup memory limits as a safety net.
+    conditions: {}
+    enabled: true
+
+  - id: sys-swap-thrashing
+    title: "Swap Thrashing"
+    description: "Excessive swap usage causing severe performance degradation."
+    category: system
+    tags: [swap, memory, performance]
+    patterns:
+      - swap
+      - thrashing
+      - "si so"
+      - "re:swap.*(?:used|usage).*[5-9]\\d%"
+    priority: 80
+    response: |
+      1) Check `vmstat 1` for high si/so columns.
+      2) Identify memory-hungry processes.
+      3) Add physical RAM or tune vm.swappiness.
+      4) Consider disabling swap for latency-sensitive workloads.
+    conditions: {}
+    enabled: true
+
+  - id: sys-disk-io
+    title: "Disk I/O Saturation"
+    description: "Disk I/O at capacity; high await times and queue depth."
+    category: system
+    tags: [disk, io, performance]
+    patterns:
+      - "disk io"
+      - "iowait"
+      - "await"
+      - "re:(?:disk|i/o|io).*(?:saturat|slow|high|bottleneck)"
+    priority: 80
+    response: |
+      1) Run `iostat -xz 1` to check %util and await.
+      2) Identify heavy writers with `iotop`.
+      3) Review I/O scheduler: `cat /sys/block/*/queue/scheduler`.
+      4) Consider moving to SSD or adding I/O capacity.
+    conditions: {}
+    enabled: true
+
+  # ========== network ==========
+  - id: net-unreachable
+    title: "Network Unreachable"
+    description: "Host or service cannot be reached over the network."
+    category: network
+    tags: [network, connectivity, unreachable]
+    patterns:
+      - "network unreachable"
+      - "connection refused"
+      - "no route to host"
+      - timeout
+      - "re:connect(?:ion)?\\s+(?:refused|timed?\\s*out)"
+    priority: 85
+    response: |
+      1) Verify physical link: `ip link show`.
+      2) Check routing: `ip route get <dest>`.
+      3) Test DNS: `dig <host>`.
+      4) Inspect firewall rules: `iptables -L -n`.
+      5) Check upstream load balancer health.
+    conditions: {}
+    enabled: true
+
+  - id: net-packet-loss
+    title: "Packet Loss / NIC Errors"
+    description: "Network interface showing dropped packets or CRC errors."
+    category: network
+    tags: [network, packet-loss, nic]
+    patterns:
+      - "packet loss"
+      - "dropped packets"
+      - "nic error"
+      - "re:RX_errors|TX_errors|dropped"
+      - retransmit
+    priority: 80
+    response: |
+      1) Check `ip -s link` for error counters.
+      2) Inspect `ethtool -S <iface>`.
+      3) Verify MTU consistency across the path.
+      4) Check cable / SFP hardware.
+      5) Run `mtr` to locate loss hop.
+    conditions: {}
+    enabled: true
+
+  - id: net-dns-failure
+    title: "DNS Resolution Failure"
+    description: "DNS queries failing or returning unexpected results."
+    category: network
+    tags: [dns, network, resolution]
+    patterns:
+      - dns
+      - "name resolution"
+      - NXDOMAIN
+      - SERVFAIL
+      - "re:dns.*(?:fail|error|timeout)"
+    priority: 80
+    response: |
+      1) Test with `dig @<server> <domain>`.
+      2) Check /etc/resolv.conf.
+      3) Verify upstream DNS server health.
+      4) Look for stale negative cache entries.
+      5) Restart systemd-resolved if applicable.
+    conditions: {}
+    enabled: true
+
+  # ========== database ==========
+  - id: db-slow-queries
+    title: "Slow Database Queries"
+    description: "Queries exceeding latency thresholds; potential missing indexes or lock contention."
+    category: database
+    tags: [database, slow-query, performance]
+    patterns:
+      - "slow query"
+      - "slow sql"
+      - "long running query"
+      - "re:query.*(?:latency|time).*[3-9]\\d{3}ms"
+      - "table lock"
+    priority: 85
+    response: |
+      1) Enable slow query log: `SET GLOBAL slow_query_log = ON`.
+      2) Run `EXPLAIN` on flagged queries.
+      3) Check for missing indexes.
+      4) Review lock waits: `SHOW ENGINE INNODB STATUS`.
+      5) Consider read replicas for read-heavy workloads.
+    conditions: {}
+    enabled: true
+
+  - id: db-replication-lag
+    title: "Database Replication Lag"
+    description: "Replica falling behind primary; stale reads possible."
+    category: database
+    tags: [database, replication, lag]
+    patterns:
+      - "replication lag"
+      - "replica behind"
+      - "re:Seconds_Behind_Master"
+      - "re:replication.*(?:delay|lag|behind)"
+      - binlog
+    priority: 80
+    response: |
+      1) Check `SHOW SLAVE STATUS` / `SHOW REPLICA STATUS`.
+      2) Verify network between primary and replica.
+      3) Look for long-running transactions on the replica.
+      4) Consider parallel replication.
+    conditions: {}
+    enabled: true
+
+  - id: db-connection-pool
+    title: "Connection Pool Exhaustion"
+    description: "Database connection pool saturated; new requests queuing or failing."
+    category: database
+    tags: [database, connection-pool, exhaustion]
+    patterns:
+      - "connection pool"
+      - "too many connections"
+      - "connection refused"
+      - "re:max_connections|pool.*(?:full|exhausted)"
+    priority: 85
+    response: |
+      1) Check current connections: `SHOW PROCESSLIST`.
+      2) Increase max_connections if headroom allows.
+      3) Review application pool settings (max_idle, max_open).
+      4) Identify connection leaks (unclosed connections).
+      5) Consider PgBouncer / ProxySQL.
+    conditions: {}
+    enabled: true
+
+  # ========== application ==========
+  - id: app-service-down
+    title: "Service Down / Unavailable"
+    description: "A critical service is not responding to health checks."
+    category: application
+    tags: [service, down, health-check]
+    patterns:
+      - "service down"
+      - "service unavailable"
+      - "health check fail"
+      - "503"
+      - "re:(?:service|process).*(?:down|crash|stop)"
+      - SIGTERM
+    priority: 95
+    response: |
+      1) Check process status: `systemctl status <service>`.
+      2) Review recent logs: `journalctl -u <service> --since '5 min ago'`.
+      3) Verify dependent services (DB, cache, queue).
+      4) Restart if safe.
+      5) Check resource limits (OOM, FD).
+    conditions: {}
+    enabled: true
+
+  - id: app-error-rate
+    title: "High 5xx Error Rate"
+    description: "Elevated HTTP 5xx error rate indicating server-side failures."
+    category: application
+    tags: [http, 5xx, error-rate]
+    patterns:
+      - "5xx"
+      - "500 error"
+      - "internal server error"
+      - "re:5[0-9]{2}.*(?:rate|count).*(?:high|elevated|spike)"
+      - "stack trace"
+    priority: 90
+    response: |
+      1) Check application logs for stack traces.
+      2) Verify upstream dependencies.
+      3) Review recent deployments for regressions.
+      4) Enable verbose error logging temporarily.
+      5) Rollback if deployment-related.
+    conditions: {}
+    enabled: true
+
+  - id: app-pod-crashloop
+    title: "CrashLoopBackOff / Pod Restart Loop"
+    description: "Kubernetes pod stuck in restart loop due to repeated crashes."
+    category: application
+    tags: [kubernetes, pod, crashloop, restart]
+    patterns:
+      - CrashLoopBackOff
+      - "pod restart"
+      - "re:restart.*count.*[5-9]\\d*"
+      - "pod evicted"
+      - OOMKilled
+    priority: 90
+    response: |
+      1) Describe pod: `kubectl describe pod <name>`.
+      2) Check container logs: `kubectl logs <pod> --previous`.
+      3) Verify resource limits.
+      4) Check liveness/readiness probe config.
+      5) Review init container dependencies.
+    conditions: {}
+    enabled: true
+
+  # ========== security ==========
+  - id: sec-ssh-brute
+    title: "SSH Brute Force Attack"
+    description: "Repeated failed SSH login attempts detected."
+    category: security
+    tags: [ssh, brute-force, security]
+    patterns:
+      - "ssh brute"
+      - "failed login"
+      - "authentication failure"
+      - "re:ssh.*(?:fail|invalid|refused).*\\d+"
+      - "invalid user"
+    priority: 95
+    response: |
+      1) Check /var/log/auth.log for source IPs.
+      2) Install and configure fail2ban.
+      3) Restrict SSH to key-based auth only.
+      4) Consider IP allowlisting.
+      5) Change default SSH port.
+    conditions: {}
+    enabled: true
+
+  - id: sec-tls-handshake
+    title: "TLS Handshake Failure"
+    description: "Clients failing TLS negotiation; certificate or cipher issues."
+    category: security
+    tags: [tls, ssl, certificate, security]
+    patterns:
+      - "tls handshake"
+      - "ssl error"
+      - "certificate expired"
+      - "certificate invalid"
+      - "re:tls.*(?:fail|error|handshake)"
+      - "cipher mismatch"
+    priority: 80
+    response: |
+      1) Check certificate validity: `openssl s_client -connect <host>:443`.
+      2) Verify cert chain completeness.
+      3) Review TLS version / cipher suite compatibility.
+      4) Check system clock (cert validation depends on time).
+      5) Renew expired certs.
+    conditions: {}
+    enabled: true

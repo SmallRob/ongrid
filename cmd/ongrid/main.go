@@ -118,12 +118,15 @@ import (
 	managerwebshellserver "github.com/ongridio/ongrid/internal/manager/server/webshell"
 
 	managerbizaudit "github.com/ongridio/ongrid/internal/manager/biz/audit"
+	managerbizchange "github.com/ongridio/ongrid/internal/manager/biz/change"
 	managerbizreport "github.com/ongridio/ongrid/internal/manager/biz/report"
+	managerbizworkflow "github.com/ongridio/ongrid/internal/manager/biz/workflow"
 	manageraudtdata "github.com/ongridio/ongrid/internal/manager/data/audit/store"
 	managerreportdata "github.com/ongridio/ongrid/internal/manager/data/report/store"
 	managerserveraiops "github.com/ongridio/ongrid/internal/manager/server/aiops"
 	managerserveralert "github.com/ongridio/ongrid/internal/manager/server/alert"
 	managerserveraudit "github.com/ongridio/ongrid/internal/manager/server/audit"
+	managerserverchange "github.com/ongridio/ongrid/internal/manager/server/change"
 	managerserverdevice "github.com/ongridio/ongrid/internal/manager/server/device"
 	managerserveredge "github.com/ongridio/ongrid/internal/manager/server/edge"
 	managerserveredgeauth "github.com/ongridio/ongrid/internal/manager/server/edgeauth"
@@ -141,6 +144,9 @@ import (
 	managerserversystemupgrade "github.com/ongridio/ongrid/internal/manager/server/systemupgrade"
 	managerservertopology "github.com/ongridio/ongrid/internal/manager/server/topology"
 	managerservertraces "github.com/ongridio/ongrid/internal/manager/server/traces"
+	managerserverworkflow "github.com/ongridio/ongrid/internal/manager/server/workflow"
+
+	"github.com/ongridio/ongrid/internal/pkg/ruleengine"
 
 	managersvcaiops "github.com/ongridio/ongrid/internal/manager/service/aiops"
 	manageraiopsconfig "github.com/ongridio/ongrid/internal/manager/service/aiopsconfig"
@@ -1648,6 +1654,28 @@ func main() {
 		knowledgeHandler.SetAuthz(authzMW)
 	}
 
+	// ITSM change management — from ITOps Agent Platform collaboration.
+	changeUC := managerbizchange.NewUsecase(
+		managerbizchange.NewMemChangeRepo(),
+		managerbizchange.NewMemAuditRepo(),
+		log.With(slog.String("comp", "change")),
+	)
+	changeHandler := managerserverchange.NewHandler(changeUC)
+
+	// Workflow engine — from ITOps Agent Platform collaboration.
+	workflowUC := managerbizworkflow.NewUsecase(log.With(slog.String("comp", "workflow")))
+	workflowHandler := managerserverworkflow.NewHandler(workflowUC)
+
+	// Structured knowledge rule engine — from ITOps Agent Platform collaboration.
+	reRuleEngine := ruleengine.NewRuleEngine()
+	// Load built-in AIOps rules from embedded YAML.
+	if err := reRuleEngine.LoadFromDir(filepath.Join("internal", "pkg", "ruleengine", "rules")); err != nil {
+		log.Warn("rule engine: failed to load built-in rules", slog.Any("err", err))
+	}
+	// Make the rule engine available to AI ops tools for pattern-matching
+	// queries alongside the vector-based knowledge search.
+	_ = reRuleEngine // TODO: wire into aiops tool registry when ready.
+
 	// L2 skill framework: builtin Executors registered via init() in
 	// internal/skill/builtin (imported above). Service dispatches via
 	// frontierbound.Client; audit goes to MySQL skill_executions.
@@ -1858,6 +1886,9 @@ func main() {
 			promProxyHandler.RegisterProtected(protected)
 			managerserveraudit.NewHandler(auditUC).Register(protected)
 			reportHandler.Register(protected)
+			// ITSM change management & workflow engine — from ITOps collaboration.
+			changeHandler.Register(protected)
+			workflowHandler.Register(protected)
 		})
 	})
 
