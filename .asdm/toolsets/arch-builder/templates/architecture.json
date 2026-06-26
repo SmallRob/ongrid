@@ -1,0 +1,111 @@
+{
+  "title": "Ongrid - Cloud-Edge AIOps Platform Architecture",
+  "type": "architecture",
+  "style": 1,
+  "viewBox": "0 0 960 750",
+  "layers": [
+    {
+      "id": "access",
+      "name": "接入层 Access Layer",
+      "color": "#3b82f6",
+      "y": 60,
+      "height": 80,
+      "components": [
+        { "id": "slack", "name": "Slack", "type": "external" },
+        { "id": "telegram", "name": "Telegram", "type": "external" },
+        { "id": "feishu", "name": "飞书", "type": "external" },
+        { "id": "dingtalk", "name": "钉钉", "type": "external" },
+        { "id": "webui", "name": "Web UI", "type": "external" }
+      ]
+    },
+    {
+      "id": "api",
+      "name": "API 层 API Layer",
+      "color": "#8b5cf6",
+      "y": 170,
+      "height": 80,
+      "components": [
+        { "id": "chi", "name": "chi Router", "type": "gateway" },
+        { "id": "auth-mw", "name": "Auth Middleware", "type": "middleware" },
+        { "id": "prom-mw", "name": "Prometheus Middleware", "type": "middleware" }
+      ]
+    },
+    {
+      "id": "business",
+      "name": "业务层 Business Layer (DDD Bounded Contexts)",
+      "color": "#10b981",
+      "y": 280,
+      "height": 200,
+      "components": [
+        { "id": "iam", "name": "IAM", "type": "domain", "desc": "认证/RBAC" },
+        { "id": "aiops", "name": "AIOps", "type": "domain", "desc": "AI Agent" },
+        { "id": "alert", "name": "Alert", "type": "domain", "desc": "告警引擎" },
+        { "id": "metric", "name": "Metric", "type": "domain", "desc": "指标查询" },
+        { "id": "topology", "name": "Topology", "type": "domain", "desc": "拓扑管理" },
+        { "id": "knowledge", "name": "Knowledge", "type": "domain", "desc": "RAG知识库" },
+        { "id": "change", "name": "Change", "type": "domain", "desc": "变更管理" },
+        { "id": "workflow", "name": "Workflow", "type": "domain", "desc": "工作流" },
+        { "id": "edge", "name": "Edge", "type": "domain", "desc": "边缘管理" }
+      ]
+    },
+    {
+      "id": "infra",
+      "name": "基础设施层 Infrastructure Layer",
+      "color": "#f59e0b",
+      "y": 510,
+      "height": 100,
+      "components": [
+        { "id": "llm", "name": "LLM Client", "type": "service", "desc": "多Provider路由" },
+        { "id": "embedding", "name": "Embedding", "type": "service", "desc": "本地嵌入" },
+        { "id": "ruleengine", "name": "Rule Engine", "type": "service", "desc": "规则引擎" },
+        { "id": "frontier", "name": "Frontier", "type": "service", "desc": "云边隧道" },
+        { "id": "notify", "name": "Notify", "type": "service", "desc": "多渠道通知" }
+      ]
+    },
+    {
+      "id": "data",
+      "name": "数据层 Data Layer",
+      "color": "#ef4444",
+      "y": 640,
+      "height": 80,
+      "components": [
+        { "id": "mysql", "name": "MySQL/SQLite", "type": "database" },
+        { "id": "qdrant", "name": "Qdrant", "type": "database", "desc": "向量存储" },
+        { "id": "prometheus", "name": "Prometheus", "type": "database", "desc": "指标存储" },
+        { "id": "loki", "name": "Loki", "type": "database", "desc": "日志存储" },
+        { "id": "tempo", "name": "Tempo", "type": "database", "desc": "追踪存储" }
+      ]
+    }
+  ],
+  "connections": [
+    { "from": "slack", "to": "chi", "label": "Webhook", "type": "request" },
+    { "from": "telegram", "to": "chi", "label": "Webhook", "type": "request" },
+    { "from": "feishu", "to": "chi", "label": "Webhook", "type": "request" },
+    { "from": "dingtalk", "to": "chi", "label": "Webhook", "type": "request" },
+    { "from": "webui", "to": "chi", "label": "HTTP", "type": "request" },
+    { "from": "chi", "to": "auth-mw", "type": "control" },
+    { "from": "auth-mw", "to": "iam", "type": "control" },
+    { "from": "chi", "to": "aiops", "label": "Chat", "type": "request" },
+    { "from": "chi", "to": "alert", "label": "API", "type": "request" },
+    { "from": "chi", "to": "metric", "label": "API", "type": "request" },
+    { "from": "chi", "to": "change", "label": "API", "type": "request" },
+    { "from": "aiops", "to": "llm", "label": "Chat", "type": "data" },
+    { "from": "aiops", "to": "knowledge", "label": "RAG", "type": "data" },
+    { "from": "knowledge", "to": "embedding", "label": "Embed", "type": "data" },
+    { "from": "knowledge", "to": "qdrant", "label": "Vector", "type": "data" },
+    { "from": "alert", "to": "prometheus", "label": "PromQL", "type": "data" },
+    { "from": "metric", "to": "prometheus", "label": "Query", "type": "data" },
+    { "from": "metric", "to": "loki", "label": "LogQL", "type": "data" },
+    { "from": "metric", "to": "tempo", "label": "TraceQL", "type": "data" },
+    { "from": "edge", "to": "frontier", "label": "geminio", "type": "control" },
+    { "from": "workflow", "to": "ruleengine", "type": "control" },
+    { "from": "alert", "to": "notify", "label": "Alert", "type": "async" },
+    { "from": "aiops", "to": "edge", "label": "Remote Exec", "type": "control" }
+  ],
+  "legend": {
+    "request": { "color": "#2563eb", "label": "请求流 Request" },
+    "data": { "color": "#059669", "label": "数据流 Data" },
+    "control": { "color": "#ea580c", "label": "控制流 Control" },
+    "async": { "color": "#6b7280", "label": "异步流 Async" }
+  }
+}

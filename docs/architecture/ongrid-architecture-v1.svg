@@ -1,0 +1,251 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 750" width="960" height="750">
+  <defs>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    </style>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#059669"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="750" rx="12" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="480" y="35" text-anchor="middle" font-size="18" font-weight="bold" fill="#1e293b">Ongrid — Cloud-Edge AIOps Platform Architecture</text>
+
+  <!-- 接入层 Access Layer -->
+  <rect x="30" y="60" width="900" height="80" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" opacity="0.6"/>
+  <text x="45" y="78" font-size="11" font-weight="600" fill="#1e40af">接入层 Access Layer</text>
+
+  <rect x="106" y="90" width="140" height="36" rx="6" fill="white" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="106" y="90" width="4" height="36" rx="2" fill="#94a3b8"/>
+  <text x="176" y="109" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Slack</text>
+  <rect x="258" y="90" width="140" height="36" rx="6" fill="white" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="258" y="90" width="4" height="36" rx="2" fill="#94a3b8"/>
+  <text x="328" y="109" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Telegram</text>
+  <rect x="410" y="90" width="140" height="36" rx="6" fill="white" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="410" y="90" width="4" height="36" rx="2" fill="#94a3b8"/>
+  <text x="480" y="109" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">飞书</text>
+  <rect x="562" y="90" width="140" height="36" rx="6" fill="white" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="562" y="90" width="4" height="36" rx="2" fill="#94a3b8"/>
+  <text x="632" y="109" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">钉钉</text>
+  <rect x="714" y="90" width="140" height="36" rx="6" fill="white" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="714" y="90" width="4" height="36" rx="2" fill="#94a3b8"/>
+  <text x="784" y="109" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Web UI</text>
+
+  <!-- API 层 API Layer -->
+  <rect x="30" y="170" width="900" height="80" rx="8" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5" opacity="0.6"/>
+  <text x="45" y="188" font-size="11" font-weight="600" fill="#5b21b6">API 层 API Layer</text>
+
+  <rect x="258" y="200" width="140" height="36" rx="6" fill="white" stroke="#8b5cf6" stroke-width="1.5"/>
+  <rect x="258" y="200" width="4" height="36" rx="2" fill="#8b5cf6"/>
+  <text x="328" y="219" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">chi Router</text>
+  <rect x="410" y="200" width="140" height="36" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5"/>
+  <rect x="410" y="200" width="4" height="36" rx="2" fill="#a78bfa"/>
+  <text x="480" y="219" text-anchor="middle" font-size="10" font-weight="600" fill="#1e293b">Auth Middleware</text>
+  <rect x="562" y="200" width="140" height="36" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5"/>
+  <rect x="562" y="200" width="4" height="36" rx="2" fill="#a78bfa"/>
+  <text x="632" y="219" text-anchor="middle" font-size="10" font-weight="600" fill="#1e293b">Prometheus Middleware</text>
+
+  <!-- 业务层 Business Layer (DDD Bounded Contexts) -->
+  <rect x="30" y="280" width="900" height="200" rx="8" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" opacity="0.6"/>
+  <text x="45" y="298" font-size="11" font-weight="600" fill="#065f46">业务层 Business Layer (DDD Bounded Contexts)</text>
+
+  <rect x="59" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="59" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="100" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">IAM</text>
+  <text x="100" y="401" text-anchor="middle" font-size="9" fill="#64748b">认证/RBAC</text>
+  <rect x="154" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="154" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="195" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">AIOps</text>
+  <text x="195" y="401" text-anchor="middle" font-size="9" fill="#64748b">AI Agent</text>
+  <rect x="249" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="249" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="290" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Alert</text>
+  <text x="290" y="401" text-anchor="middle" font-size="9" fill="#64748b">告警引擎</text>
+  <rect x="344" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="344" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="385" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Metric</text>
+  <text x="385" y="401" text-anchor="middle" font-size="9" fill="#64748b">指标查询</text>
+  <rect x="439" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="439" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="480" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Topology</text>
+  <text x="480" y="401" text-anchor="middle" font-size="9" fill="#64748b">拓扑管理</text>
+  <rect x="534" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="534" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="575" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Knowledge</text>
+  <text x="575" y="401" text-anchor="middle" font-size="9" fill="#64748b">RAG知识库</text>
+  <rect x="629" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="629" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="670" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Change</text>
+  <text x="670" y="401" text-anchor="middle" font-size="9" fill="#64748b">变更管理</text>
+  <rect x="724" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="724" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="765" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Workflow</text>
+  <text x="765" y="401" text-anchor="middle" font-size="9" fill="#64748b">工作流</text>
+  <rect x="819" y="370" width="83" height="36" rx="6" fill="white" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="819" y="370" width="4" height="36" rx="2" fill="#10b981"/>
+  <text x="860" y="389" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Edge</text>
+  <text x="860" y="401" text-anchor="middle" font-size="9" fill="#64748b">边缘管理</text>
+
+  <!-- 基础设施层 Infrastructure Layer -->
+  <rect x="30" y="510" width="900" height="100" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5" opacity="0.6"/>
+  <text x="45" y="528" font-size="11" font-weight="600" fill="#92400e">基础设施层 Infrastructure Layer</text>
+
+  <rect x="106" y="550" width="140" height="36" rx="6" fill="white" stroke="#f59e0b" stroke-width="1.5"/>
+  <rect x="106" y="550" width="4" height="36" rx="2" fill="#f59e0b"/>
+  <text x="176" y="569" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">LLM Client</text>
+  <text x="176" y="581" text-anchor="middle" font-size="9" fill="#64748b">多Provider路由</text>
+  <rect x="258" y="550" width="140" height="36" rx="6" fill="white" stroke="#f59e0b" stroke-width="1.5"/>
+  <rect x="258" y="550" width="4" height="36" rx="2" fill="#f59e0b"/>
+  <text x="328" y="569" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Embedding</text>
+  <text x="328" y="581" text-anchor="middle" font-size="9" fill="#64748b">本地嵌入</text>
+  <rect x="410" y="550" width="140" height="36" rx="6" fill="white" stroke="#f59e0b" stroke-width="1.5"/>
+  <rect x="410" y="550" width="4" height="36" rx="2" fill="#f59e0b"/>
+  <text x="480" y="569" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Rule Engine</text>
+  <text x="480" y="581" text-anchor="middle" font-size="9" fill="#64748b">规则引擎</text>
+  <rect x="562" y="550" width="140" height="36" rx="6" fill="white" stroke="#f59e0b" stroke-width="1.5"/>
+  <rect x="562" y="550" width="4" height="36" rx="2" fill="#f59e0b"/>
+  <text x="632" y="569" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Frontier</text>
+  <text x="632" y="581" text-anchor="middle" font-size="9" fill="#64748b">云边隧道</text>
+  <rect x="714" y="550" width="140" height="36" rx="6" fill="white" stroke="#f59e0b" stroke-width="1.5"/>
+  <rect x="714" y="550" width="4" height="36" rx="2" fill="#f59e0b"/>
+  <text x="784" y="569" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Notify</text>
+  <text x="784" y="581" text-anchor="middle" font-size="9" fill="#64748b">多渠道通知</text>
+
+  <!-- 数据层 Data Layer -->
+  <rect x="30" y="640" width="900" height="80" rx="8" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5" opacity="0.6"/>
+  <text x="45" y="658" font-size="11" font-weight="600" fill="#991b1b">数据层 Data Layer</text>
+
+  <rect x="106" y="670" width="140" height="36" rx="6" fill="white" stroke="#ef4444" stroke-width="1.5"/>
+  <rect x="106" y="670" width="4" height="36" rx="2" fill="#ef4444"/>
+  <text x="176" y="689" text-anchor="middle" font-size="10" font-weight="600" fill="#1e293b">MySQL/SQLite</text>
+  <rect x="258" y="670" width="140" height="36" rx="6" fill="white" stroke="#ef4444" stroke-width="1.5"/>
+  <rect x="258" y="670" width="4" height="36" rx="2" fill="#ef4444"/>
+  <text x="328" y="689" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Qdrant</text>
+  <text x="328" y="701" text-anchor="middle" font-size="9" fill="#64748b">向量存储</text>
+  <rect x="410" y="670" width="140" height="36" rx="6" fill="white" stroke="#ef4444" stroke-width="1.5"/>
+  <rect x="410" y="670" width="4" height="36" rx="2" fill="#ef4444"/>
+  <text x="480" y="689" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Prometheus</text>
+  <text x="480" y="701" text-anchor="middle" font-size="9" fill="#64748b">指标存储</text>
+  <rect x="562" y="670" width="140" height="36" rx="6" fill="white" stroke="#ef4444" stroke-width="1.5"/>
+  <rect x="562" y="670" width="4" height="36" rx="2" fill="#ef4444"/>
+  <text x="632" y="689" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Loki</text>
+  <text x="632" y="701" text-anchor="middle" font-size="9" fill="#64748b">日志存储</text>
+  <rect x="714" y="670" width="140" height="36" rx="6" fill="white" stroke="#ef4444" stroke-width="1.5"/>
+  <rect x="714" y="670" width="4" height="36" rx="2" fill="#ef4444"/>
+  <text x="784" y="689" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">Tempo</text>
+  <text x="784" y="701" text-anchor="middle" font-size="9" fill="#64748b">追踪存储</text>
+
+  <!-- Edge Agent (separate deployment) -->
+  <rect x="760" y="280" width="170" height="200" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2" stroke-dasharray="6,3"/>
+  <text x="845" y="300" text-anchor="middle" font-size="12" font-weight="bold" fill="#166534">Edge Agent</text>
+  <text x="845" y="315" text-anchor="middle" font-size="9" fill="#16a34a">(ongrid-edge)</text>
+  <rect x="775" y="327" width="140" height="20" rx="4" fill="white" stroke="#22c55e" stroke-width="1"/>
+  <text x="845" y="340" text-anchor="middle" font-size="10" fill="#166534">Plugin System</text>
+  <rect x="775" y="352" width="140" height="20" rx="4" fill="white" stroke="#22c55e" stroke-width="1"/>
+  <text x="845" y="365" text-anchor="middle" font-size="10" fill="#166534">Command Policy</text>
+  <rect x="775" y="377" width="140" height="20" rx="4" fill="white" stroke="#22c55e" stroke-width="1"/>
+  <text x="845" y="390" text-anchor="middle" font-size="10" fill="#166534">Collector</text>
+  <rect x="775" y="402" width="140" height="20" rx="4" fill="white" stroke="#22c55e" stroke-width="1"/>
+  <text x="845" y="415" text-anchor="middle" font-size="10" fill="#166534">Bash Handler</text>
+  <rect x="775" y="427" width="140" height="20" rx="4" fill="white" stroke="#22c55e" stroke-width="1"/>
+  <text x="845" y="440" text-anchor="middle" font-size="10" fill="#166534">Host Files</text>
+  <rect x="775" y="452" width="140" height="20" rx="4" fill="white" stroke="#22c55e" stroke-width="1"/>
+  <text x="845" y="465" text-anchor="middle" font-size="10" fill="#166534">WebShell</text>
+
+  <!-- Connections -->
+  <line x1="176" y1="126" x2="328" y2="200" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="227" y="155" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="252" y="166" text-anchor="middle" font-size="8" fill="#2563eb">Webhook</text>
+  <line x1="328" y1="126" x2="328" y2="200" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="303" y="155" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="328" y="166" text-anchor="middle" font-size="8" fill="#2563eb">Webhook</text>
+  <line x1="480" y1="126" x2="328" y2="200" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="379" y="155" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="404" y="166" text-anchor="middle" font-size="8" fill="#2563eb">Webhook</text>
+  <line x1="632" y1="126" x2="328" y2="200" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="455" y="155" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="480" y="166" text-anchor="middle" font-size="8" fill="#2563eb">Webhook</text>
+  <line x1="784" y1="126" x2="328" y2="200" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="531" y="155" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="556" y="166" text-anchor="middle" font-size="8" fill="#2563eb">HTTP</text>
+  <line x1="398" y1="218" x2="410" y2="218" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arrow-orange)" opacity="0.7"/>
+  <line x1="480" y1="236" x2="100" y2="370" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arrow-orange)" opacity="0.7"/>
+  <line x1="328" y1="236" x2="195" y2="370" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="236" y="295" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="261" y="306" text-anchor="middle" font-size="8" fill="#2563eb">Chat</text>
+  <line x1="328" y1="236" x2="290" y2="370" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="284" y="295" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="309" y="306" text-anchor="middle" font-size="8" fill="#2563eb">API</text>
+  <line x1="328" y1="236" x2="385" y2="370" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="331" y="295" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="356" y="306" text-anchor="middle" font-size="8" fill="#2563eb">API</text>
+  <line x1="328" y1="236" x2="670" y2="370" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" opacity="0.7"/>
+  <rect x="474" y="295" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="499" y="306" text-anchor="middle" font-size="8" fill="#2563eb">API</text>
+  <line x1="195" y1="406" x2="176" y2="550" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <rect x="160" y="470" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="185" y="481" text-anchor="middle" font-size="8" fill="#059669">Chat</text>
+  <line x1="236" y1="388" x2="534" y2="388" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <rect x="360" y="380" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="385" y="391" text-anchor="middle" font-size="8" fill="#059669">RAG</text>
+  <line x1="575" y1="406" x2="328" y2="550" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <rect x="426" y="470" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="451" y="481" text-anchor="middle" font-size="8" fill="#059669">Embed</text>
+  <line x1="575" y1="406" x2="328" y2="670" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <rect x="426" y="530" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="451" y="541" text-anchor="middle" font-size="8" fill="#059669">Vector</text>
+  <line x1="290" y1="406" x2="480" y2="670" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <rect x="360" y="530" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="385" y="541" text-anchor="middle" font-size="8" fill="#059669">PromQL</text>
+  <line x1="385" y1="406" x2="480" y2="670" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <rect x="407" y="530" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="432" y="541" text-anchor="middle" font-size="8" fill="#059669">Query</text>
+  <line x1="385" y1="406" x2="632" y2="670" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <rect x="483" y="530" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="508" y="541" text-anchor="middle" font-size="8" fill="#059669">LogQL</text>
+  <line x1="385" y1="406" x2="784" y2="670" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow-green)" opacity="0.7"/>
+  <rect x="559" y="530" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="584" y="541" text-anchor="middle" font-size="8" fill="#059669">TraceQL</text>
+  <line x1="860" y1="406" x2="632" y2="550" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arrow-orange)" opacity="0.7"/>
+  <rect x="721" y="470" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="746" y="481" text-anchor="middle" font-size="8" fill="#ea580c">geminio</text>
+  <line x1="765" y1="406" x2="480" y2="550" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arrow-orange)" opacity="0.7"/>
+  <line x1="290" y1="406" x2="784" y2="550" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-gray)" stroke-dasharray="5,3" opacity="0.7"/>
+  <rect x="512" y="470" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="537" y="481" text-anchor="middle" font-size="8" fill="#6b7280">Alert</text>
+  <line x1="236" y1="388" x2="819" y2="388" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arrow-orange)" opacity="0.7"/>
+  <rect x="502" y="380" width="50" height="14" rx="3" fill="white" opacity="0.85"/>
+  <text x="527" y="391" text-anchor="middle" font-size="8" fill="#ea580c">Remote Exec</text>
+
+  <!-- Frontier Tunnel -->
+  <line x1="760" y1="380" x2="640" y2="530" stroke="#ea580c" stroke-width="2" stroke-dasharray="8,4" marker-end="url(#arrow-orange)" opacity="0.8"/>
+  <text x="710" y="450" text-anchor="middle" font-size="9" fill="#ea580c" transform="rotate(-30,710,450)">Frontier Tunnel</text>
+
+  <!-- Legend -->
+  <rect x="30" y="735" width="900" height="1" fill="#cbd5e1"/>
+  <line x1="50" y1="743" x2="75" y2="743" stroke="#2563eb" stroke-width="2"/>
+  <text x="80" y="746" font-size="10" fill="#475569">请求流 Request</text>
+  <line x1="190" y1="743" x2="215" y2="743" stroke="#059669" stroke-width="2"/>
+  <text x="220" y="746" font-size="10" fill="#475569">数据流 Data</text>
+  <line x1="330" y1="743" x2="355" y2="743" stroke="#ea580c" stroke-width="2"/>
+  <text x="360" y="746" font-size="10" fill="#475569">控制流 Control</text>
+  <line x1="470" y1="743" x2="495" y2="743" stroke="#6b7280" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="500" y="746" font-size="10" fill="#475569">异步流 Async</text>
+
+</svg>
